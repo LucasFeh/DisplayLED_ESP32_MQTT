@@ -1,35 +1,19 @@
 #include "main.h"
-#include "xtensa/core-macros.h"
-// #include "DisplayControl.h"
-// #include "WifiManager.h"
-// #include "MqttManager.h"
-// #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 
 
-// const char* ssid = "DiEletrons_Reuniao";
-// const char* password = "49433012";
-// const char* mqtt_server = "broker.hivemq.com";
-
-#define PANEL_WIDTH (64 * 2)
-#define PANEL_HEIGHT 32
-#define PANELS_NUMBER 1
+#define PANEL_WIDTH (64 * 1)
+#define PANEL_HEIGHT (32 * 1)
+#define PANELS_NUMBER 2
 #define PIN_E 32
 #define TOPIC_1 "DC"
 #define TOPIC_2 "DC1"
 #define TOPIC_3 "DC2"
 
-
-// unsigned long lastMsg = 0; // Variável para armazenar o tempo da última mensagem enviada
-// #define MSG_BUFFER_SIZE (50) // Define o tamanho do buffer de mensagens
-// char msg[MSG_BUFFER_SIZE]; // Cria um buffer de mensagens
-
-// WiFiClient espClient; // Cria um cliente WiFi para se conectar à rede
-// MQTTManager mqtt(mqtt_server, espClient);
-// WiFiManager wifi(ssid, password);
-
 TaskHandle_t animationTaskHandle = NULL;
+TaskHandle_t GifTaskHandle = NULL;
 
 void taskAnimation(void * parameter);
+void taskGif(void * parameter);
 
 void callback(char* topic, byte* payload, unsigned int length){
   Serial.print("Mensagem recebida [");
@@ -89,16 +73,33 @@ void callback(char* topic, byte* payload, unsigned int length){
            if (animationTaskHandle != NULL) {
             vTaskSuspend(animationTaskHandle);
             mqtt.publishMessage("Mensagens", "Animation Stoped");
+            Display_init();
         }
+  }
+
+    if ( strncmp((char*)payload, "gif", length) == 0) {
+
+        xTaskCreate(taskGif, "TaskGif", 4096, NULL, 1, &GifTaskHandle);
+        mqtt.publishMessage("Mensagens", "Gif Started");
+
+  }
+    if ( strncmp((char*)payload, "breakgif", length) == 0) {
+
+          vTaskDelete(GifTaskHandle);
+          mqtt.publishMessage("Mensagens", "Gif Stoped");
+          ESP.restart();
+        
   }
 
 }
 
 void setup() {
 
-  // xTaskCreate(taskAnimation, "TaskAnimation", 4096, NULL, 1, &animationTaskHandle);
+  xTaskCreate(taskAnimation, "TaskAnimation", 4096, NULL, 1, &animationTaskHandle);
+
   HUB75_I2S_CFG mxconfig(PANEL_WIDTH, PANEL_HEIGHT, PANELS_NUMBER);
   mxconfig.gpio.e = PIN_E;
+  mxconfig.gpio.e = 18;
   mxconfig.driver = HUB75_I2S_CFG::FM6126A;
     
   matrix = new MatrixPanel_I2S_DMA(mxconfig);
@@ -106,6 +107,7 @@ void setup() {
   Display_init();
   
   Serial.begin(115200);
+  gif.begin(LITTLE_ENDIAN_PIXELS);
 
   wifi.connect();
   mqtt.connect(TOPIC_1, TOPIC_2, TOPIC_3);
@@ -119,8 +121,6 @@ void setup() {
 void loop() {
   mqtt.connect(TOPIC_1, TOPIC_2, TOPIC_3);
   mqtt.loop();
-  
-  Animation("DI",3000);
 
 }
 
@@ -129,7 +129,15 @@ void taskAnimation(void * parameter) {
 
     for (;;) {
 
-       
+       Animation("DI", 50);
+        
+    }
+}
+void taskGif(void * parameter) {
+
+    for (;;) {
+
+        Gif();
         
     }
 }
