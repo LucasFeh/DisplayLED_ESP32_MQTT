@@ -90,6 +90,39 @@ void callback(char* topic, byte* payload, unsigned int length){
           ESP.restart();
         
   }
+    if ( strncmp((char*)payload, "time", length) == 0) {
+
+          time();
+        
+  }
+
+
+
+
+
+
+
+
+    if ( strncmp((char*)payload, "font1", length) == 0) {
+        Font_test(FreeMono9pt7b);
+        mqtt.publishMessage("Mensagens", "Teste Fonte MONO 9px");
+  }
+
+    if ( strncmp((char*)payload, "font2", length) == 0) {
+        Font_test(FreeSans9pt7b);
+        mqtt.publishMessage("Mensagens", "Teste Fonte SANS 9px");
+  }
+
+    if ( strncmp((char*)payload, "font3", length) == 0) {
+        Font_test(FreeSansBold9pt7b);
+        mqtt.publishMessage("Mensagens", "Teste Fonte SANS 9px - BOLD");
+  }
+
+    if ( strncmp((char*)payload, "font4", length) == 0) {
+        Font_test(FreeSerif9pt7b);
+        mqtt.publishMessage("Mensagens", "Teste Fonte Serif 9px ");
+  }
+
 
 }
 

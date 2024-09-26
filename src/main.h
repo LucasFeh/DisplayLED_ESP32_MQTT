@@ -7,11 +7,14 @@
 #include "WifiManager.h"
 #include "Gifs.h"
 #include <SPIFFS.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_I2CDevice.h>
+#include "AllFonts.h"
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 
 
 
-const char* ssid = "DiEletrons_Reuniao";
+const char* ssid = "DiEletrons";
 const char* password = "49433012";
 const char* mqtt_server = "broker.hivemq.com";
 
@@ -40,18 +43,45 @@ extern void Display_init(){
     Serial.println("Falha ao inicializar o painel");
   }
 
+    matrix->setFont(&FreeSansBold9pt7b);
             
   matrix->fillScreen(matrix->color444(0, 0, 0));
-  matrix->setBrightness8(192);
+  matrix->setBrightness8(255);
 
-  matrix->setCursor(4, 0);            
+
+  matrix->setCursor(0 , 0 + 13);         
   matrix->setTextColor(matrix->color444(255, 0, 0)); 
-  matrix->setTextSize(2);             
+  matrix->setTextSize(1);             
   matrix->print("Teste");
 
-  matrix->setCursor(3, 16);           
+  matrix->setCursor(3, 15 + 13);           
   matrix->setTextColor(matrix->color444(0, 255, 0)); 
   matrix->print("2 displays");
+
+  matrix->setFont(NULL);
+
+}
+
+extern void Font_test(const GFXfont FontStyle){
+
+  matrix->setFont(&FontStyle);
+     
+  matrix->fillScreen(matrix->color444(0, 0, 0));
+  matrix->setBrightness8(255);
+
+  matrix->setCursor(3, 14 + 13);
+  matrix->setTextSize(1);           
+  matrix->setTextColor(matrix->color444(255,255,255)); 
+  matrix->print("Teste Fonte");
+
+  matrix->setFont(NULL);
+
+  matrix->setCursor(56, 2);           
+  matrix->setTextColor(matrix->color444(0,255,0)); 
+  matrix->setTextSize(0);
+  matrix->print("Di-eletrons");
+
+  matrix->setFont(NULL);
 
 }
 
@@ -100,7 +130,6 @@ extern void Animation(char* txt, long delay){
             vTaskDelay(delay / portTICK_PERIOD_MS);  // Espera por 50ms
         }
 }
-
 
 extern void clear_display(){
     
@@ -212,5 +241,17 @@ extern void Gif(){
     {
     }
     gif.close();
+  }
+}
+
+extern void time(){
+
+  for (int i =0; i< 127; i += 1){
+
+    matrix->drawPixel(i, 31, 0xFFFF);
+    matrix->drawPixel(i, 30, 0xFFFF);
+    matrix->drawPixel(i, 29, 0xFFFF);
+    delay(50);
+
   }
 }
