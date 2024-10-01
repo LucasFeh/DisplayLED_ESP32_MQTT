@@ -13,6 +13,13 @@
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 
 
+#define PANEL_WIDTH (64 * 2)
+#define PANEL_HEIGHT (32 * 2)
+#define PANELS_NUMBER 2
+#define PIN_E 32
+#define TOPIC_1 "DC"
+#define TOPIC_2 "Mensagens"
+#define TOPIC_3 "key2"
 
 const char* ssid = "DiEletrons";
 const char* password = "49433012";
@@ -22,15 +29,24 @@ WiFiClient espClient; // Cria um cliente WiFi para se conectar à rede
 MQTTManager mqtt(mqtt_server, espClient);
 WiFiManager wifi(ssid, password);
 
+#define VIRTUAL_MATRIX_CHAIN_TYPE CHAIN_TOP_RIGHT_DOWN
 
 MatrixPanel_I2S_DMA *matrix = nullptr;
+
 AnimatedGIF gif;
 
-int i = 0;
-int j = 0;
 boolean directionx = true;
 boolean directiony = true;
 boolean AnimationActive;
+boolean gifActive;
+uint8_t ascii;
+uint8_t bit;
+uint8_t pay;
+int i = 0;
+int j = 0;
+int r = 0;
+int jb = 0;   
+int num_fonts = sizeof(fonts) / sizeof(fonts[0]); 
 
 
 
@@ -54,38 +70,85 @@ extern void Display_init(){
   matrix->setTextSize(1);             
   matrix->print("Teste");
 
-  matrix->setCursor(3, 15 + 13);           
+  matrix->setCursor(130, 40);           
   matrix->setTextColor(matrix->color444(0, 255, 0)); 
-  matrix->print("2 displays");
+  matrix->print("4 displays");
 
   matrix->setFont(NULL);
 
 }
 
-extern void Font_test(const GFXfont FontStyle){
+extern void Font_test(const GFXfont FontStyle, int i){
 
+  matrix->clearScreen();
   matrix->setFont(&FontStyle);
      
   matrix->fillScreen(matrix->color444(0, 0, 0));
   matrix->setBrightness8(255);
 
-  matrix->setCursor(3, 14 + 13);
+  matrix->setCursor( 2 , 17 + 13);
   matrix->setTextSize(1);           
   matrix->setTextColor(matrix->color444(255,255,255)); 
-  matrix->print("Teste Fonte");
+  matrix->print("EEEEEE-EEEE");
+
+  // matrix->setFont(NULL);
+
+  // matrix->setCursor(56, 2);           
+  // matrix->setTextColor(matrix->color444(0,255,0)); 
+  // matrix->setTextSize(0);
+  // matrix->print("Di-eletrons");
 
   matrix->setFont(NULL);
 
-  matrix->setCursor(56, 2);           
-  matrix->setTextColor(matrix->color444(0,255,0)); 
-  matrix->setTextSize(0);
-  matrix->print("Di-eletrons");
+  mqtt.publishMessage("Mensagens", fonts[i].message); 
 
+}
+
+extern void AscII(char ascii){
+
+  matrix->clearScreen();
+  matrix->setFont(&FreeSansBold9pt7b);
+  matrix->setCursor(1, 15+ 13);
+  matrix->setTextSize(2);           
+  matrix->setTextColor(matrix->color444(255,255,255)); 
+  matrix->print(ascii);
+  
   matrix->setFont(NULL);
 
 }
 
+extern void clear_display(){
+    
+    matrix-> clearScreen(); 
+    matrix->setBrightness8(60);
+    matrix->fillScreen(matrix->color444(0, 0, 0));
 
+    // Exibe "Hello World" na tela
+    matrix->setCursor(4, 4);            // Define a posição do texto
+    matrix->setTextColor(matrix->color444(255,255,255)); // Define a cor do texto (roxo)
+    matrix->setTextSize(2);              // Tamanho do texto
+    matrix->print("LIMPOU :D");
+
+    delay(2000);
+    matrix-> clearScreen(); 
+
+    mqtt.publishMessage("Mensagens", "Clear");
+}
+
+extern void time(){
+
+  for (int i =0; i< 127; i += 1){
+
+    matrix->drawPixel(i, 31, 0xFFFF);
+    matrix->drawPixel(i, 30, 0xFFFF);
+    matrix->drawPixel(i, 29, 0xFFFF);
+    delay(50);
+
+  }
+}
+
+
+/////////////////////////////////////////////////////////////////// ANIMATION //////////////////////////////////////////////////////////////
 extern void Animation(char* txt, long delay){
 
     if (AnimationActive) {
@@ -96,7 +159,7 @@ extern void Animation(char* txt, long delay){
             if (directionx) {
                 matrix->setCursor(i, j);
                 i++;
-                matrix->setTextColor(matrix->color444(random(0, 256),random(0, 256), random(0, 256)));
+               matrix->setTextColor(matrix->color444(0,255,0));
                 matrix->setTextSize(1);
                 size_t aa = matrix->print(txt);
                 int T = 127 - aa*6;
@@ -106,7 +169,7 @@ extern void Animation(char* txt, long delay){
             } else {
                 matrix->setCursor(i, j);
                 i--;
-                matrix->setTextColor(matrix->color444(random(0, 256),random(0, 256), random(0, 256)));
+                matrix->setTextColor(matrix->color444(0,255,0));
                 matrix->setTextSize(1);
                 matrix->print(txt);
                 if (i < 1) {
@@ -130,26 +193,7 @@ extern void Animation(char* txt, long delay){
             vTaskDelay(delay / portTICK_PERIOD_MS);  // Espera por 50ms
         }
 }
-
-extern void clear_display(){
-    
-    matrix-> clearScreen(); 
-
-    matrix->fillScreen(matrix->color444(0, 0, 0));
-    matrix->setBrightness8(192);
-
-    // Exibe "Hello World" na tela
-    matrix->setCursor(4, 4);            // Define a posição do texto
-    matrix->setTextColor(matrix->color444(255,255,255)); // Define a cor do texto (roxo)
-    matrix->setTextSize(2);              // Tamanho do texto
-    matrix->print("LIMPOU :D");
-
-    delay(2000);
-    matrix-> clearScreen(); 
-
-    mqtt.publishMessage("Mensagens", "Clear");
-}
-
+/////////////////////////////////////////////////////////////////////////////// GIF /////////////////////////////////////////////////////////////////
 
 extern void GIFDraw(GIFDRAW *pDraw)
 {
@@ -234,24 +278,13 @@ extern void GIFDraw(GIFDRAW *pDraw)
 
 
 extern void Gif(){
- if (gif.open((uint8_t *)homer_tiny, sizeof(homer_tiny), GIFDraw))
-  {
-    Serial.printf("Successfully opened GIF; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
-    while (gif.playFrame(true, NULL))
-    {
-    }
-    gif.close();
-  }
-}
 
-extern void time(){
-
-  for (int i =0; i< 127; i += 1){
-
-    matrix->drawPixel(i, 31, 0xFFFF);
-    matrix->drawPixel(i, 30, 0xFFFF);
-    matrix->drawPixel(i, 29, 0xFFFF);
-    delay(50);
-
+    if (gif.open((uint8_t *)homer_tiny, sizeof(homer_tiny), GIFDraw))
+      {
+        Serial.printf("Successfully opened GIF; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
+        while (gif.playFrame(true, NULL))
+        {
+        }
+        gif.close();
   }
 }

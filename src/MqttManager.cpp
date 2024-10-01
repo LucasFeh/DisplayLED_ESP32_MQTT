@@ -6,14 +6,16 @@ MQTTManager::MQTTManager(const char* server, WiFiClient& wifiClient) : server(se
 }
 
 void MQTTManager::connect(const char* topic1, const char* topic2, const char* topic3) {
+  client.setKeepAlive(60);
   while (!client.connected()) {
-    String clientId = "Client-";
+    String clientId = "Client-151354";
+
     if (client.connect(clientId.c_str())) {
       Serial.println("Conectado ao servidor MQTT.");
-      
-    if (topic1) client.subscribe(topic1);
-    if (topic2) client.subscribe(topic2);
-    if (topic3) client.subscribe(topic3);
+          
+        if (topic1) client.subscribe(topic1);
+        if (topic2) client.subscribe(topic2);
+        if (topic3) client.subscribe(topic3);
 
     } else {
       Serial.print("Falha na conexão, estado: ");

@@ -1,14 +1,5 @@
 #include "main.h"
 
-
-#define PANEL_WIDTH (64 * 1)
-#define PANEL_HEIGHT (32 * 1)
-#define PANELS_NUMBER 2
-#define PIN_E 32
-#define TOPIC_1 "DC"
-#define TOPIC_2 "DC1"
-#define TOPIC_3 "DC2"
-
 TaskHandle_t animationTaskHandle = NULL;
 TaskHandle_t GifTaskHandle = NULL;
 
@@ -24,7 +15,7 @@ void callback(char* topic, byte* payload, unsigned int length){
   }
   Serial.println();
 
-    if ( char(payload[0]) == '1') {
+    if ( char(payload[0]) == '5') {
 
       Serial.println('entrou');
       matrix-> clearScreen();
@@ -43,17 +34,17 @@ void callback(char* topic, byte* payload, unsigned int length){
   }
     if (char(payload[0]) == '3') {
 
-    matrix-> clearScreen(); 
-    matrix->fillScreen(matrix->color444(0, 0, 0));
-    matrix->setBrightness8(192);
+      matrix-> clearScreen(); 
+      matrix->fillScreen(matrix->color444(0, 0, 255));
+    mqtt.publishMessage("Mensagens", "Display Full blue");
 
-    // Exibe "Hello World" na tela
-    matrix->setCursor(0, 0);            // Define a posição do texto
-    matrix->setTextColor(matrix->color444(255, 255, 255)); // Define a cor do texto (roxo)
-    matrix->setTextSize(1);              // Tamanho do texto
-    matrix->print("teste");
+  }
+    if (char(payload[0]) == '4') {
 
-    mqtt.publishMessage("Mensagens", "Display Full White");
+      matrix-> clearScreen(); 
+      matrix->fillScreen(matrix->color444(255, 255, 255));
+    mqtt.publishMessage("Mensagens", "Display Full white");
+
   }
     if (strncmp((char*)payload, "clear", length) == 0) {
 
@@ -79,89 +70,81 @@ void callback(char* topic, byte* payload, unsigned int length){
 
     if ( strncmp((char*)payload, "gif", length) == 0) {
 
-        xTaskCreate(taskGif, "TaskGif", 4096, NULL, 1, &GifTaskHandle);
+        gifActive = true;
+        vTaskResume(GifTaskHandle);
         mqtt.publishMessage("Mensagens", "Gif Started");
 
   }
     if ( strncmp((char*)payload, "breakgif", length) == 0) {
 
-          vTaskDelete(GifTaskHandle);
+          gifActive = false;
+          vTaskSuspend(GifTaskHandle);
           mqtt.publishMessage("Mensagens", "Gif Stoped");
-          ESP.restart();
+  }
+      if (strncmp((char*)topic, "key2", length) == 0) {
         
-  }
-    if ( strncmp((char*)payload, "time", length) == 0) {
+               for ( u_int8_t i = 0; i < 8; i++) {
+                 bit = (payload[i] == '1') ? 1 : 0; 
+                    ascii += (bit << 7-i);  
+                }
 
-          time();
-        
-  }
+                Serial.println(ascii);
+                AscII((char)ascii);
+                ascii = 0;
+
+      }
+
+  strncmp((char*)payload, "time", length) == 0 ? time() : (void)0;
 
 
-
-
-
-
-
-
-    if ( strncmp((char*)payload, "font1", length) == 0) {
-        Font_test(FreeMono9pt7b);
-        mqtt.publishMessage("Mensagens", "Teste Fonte MONO 9px");
-  }
-
-    if ( strncmp((char*)payload, "font2", length) == 0) {
-        Font_test(FreeSans9pt7b);
-        mqtt.publishMessage("Mensagens", "Teste Fonte SANS 9px");
-  }
-
-    if ( strncmp((char*)payload, "font3", length) == 0) {
-        Font_test(FreeSansBold9pt7b);
-        mqtt.publishMessage("Mensagens", "Teste Fonte SANS 9px - BOLD");
-  }
-
-    if ( strncmp((char*)payload, "font4", length) == 0) {
-        Font_test(FreeSerif9pt7b);
-        mqtt.publishMessage("Mensagens", "Teste Fonte Serif 9px ");
-  }
+      for (int i = 0; i < num_fonts; i++) {
+          if (strncmp((char*)payload, fonts[i].name, length) == 0) {
+              Font_test(fonts[i].font, i);
+              break; 
+      }
+    }
 
 
 }
 
 void setup() {
-
-  xTaskCreate(taskAnimation, "TaskAnimation", 4096, NULL, 1, &animationTaskHandle);
-
-  HUB75_I2S_CFG mxconfig(PANEL_WIDTH, PANEL_HEIGHT, PANELS_NUMBER);
-  mxconfig.gpio.e = PIN_E;
-  mxconfig.gpio.e = 18;
-  mxconfig.driver = HUB75_I2S_CFG::FM6126A;
-    
-  matrix = new MatrixPanel_I2S_DMA(mxconfig);
-  
-  Display_init();
-  
   Serial.begin(115200);
-  gif.begin(LITTLE_ENDIAN_PIXELS);
 
   wifi.connect();
+   
   mqtt.connect(TOPIC_1, TOPIC_2, TOPIC_3);
 
+  delay(5000);
   mqtt.publishMessage("Mensagens", "mqtt Iniciou");
   
   mqtt.setCallback(callback);
 
+  xTaskCreate(taskAnimation, "TaskAnimation", 4096, NULL, 1, &animationTaskHandle);
+  xTaskCreate(taskGif, "TaskGif", 4096, NULL, 1, &GifTaskHandle);
+
+  HUB75_I2S_CFG mxconfig(PANEL_WIDTH, PANEL_HEIGHT, PANELS_NUMBER);
+  // FourScanPanel = new VirtualMatrixPanel((*matrix), NUM_ROWS, NUM_COLS, PANEL_WIDTH, PANEL_HEIGHT, VIRTUAL_MATRIX_CHAIN_TYPE);
+  // FourScanPanel->setPhysicalPanelScanRate(FOUR_SCAN_32PX_HIGH);
+  mxconfig.gpio.e = PIN_E;
+    
+  matrix = new MatrixPanel_I2S_DMA(mxconfig);
+ 
+
+  Display_init();
+  
+  gif.begin(LITTLE_ENDIAN_PIXELS);
 }
 
 void loop() {
   mqtt.connect(TOPIC_1, TOPIC_2, TOPIC_3);
   mqtt.loop();
-
+  
 }
 
 
 void taskAnimation(void * parameter) {
 
     for (;;) {
-
        Animation("DI", 50);
         
     }
@@ -170,7 +153,9 @@ void taskGif(void * parameter) {
 
     for (;;) {
 
-        Gif();
-        
+      if(gifActive){
+            Gif();
+      }
+        vTaskDelay(50);
     }
 }
